@@ -11,13 +11,41 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-28
+
+The core: the scanner that turns source text into a token stream. Wires `span-lang`,
+`token-lang`, `intern-lang`, and `source-lang` — the first MAIN-tier crate.
+
 ### Added
+
+- `Cursor<'a>` — a zero-copy scanner over a `&str`. Construct with `new`,
+  `with_base`, or `for_source` (spans in a `SourceMap`'s global space). Look ahead
+  with `first`, `second`, `is_eof`, `remaining`, `pos`; consume with `bump`,
+  `bump_if`, `eat_while`; read the run with `lexeme`, `token_span`, `intern_lexeme`;
+  finish a token with `emit`, which builds a `Token<K>` and starts the next. Borrows
+  the source for its whole life and allocates nothing.
+- Re-exports of `Token`, `TokenKind` (`token-lang`), `Interner`, `Symbol`
+  (`intern-lang`), `BytePos`, `Span` (`span-lang`), and `SourceFile` (`source-lang`).
+- Property tests over arbitrary UTF-8 (position/UTF-8 advance, source tiling, base
+  offsetting), an integration test that drives a small lexer and renders a
+  `diag-lang` diagnostic from a cursor span, and Criterion benchmarks for full-lex
+  and raw-`bump` throughput.
+- `dev/DIRECTIVES.md` and `docs/API.md`.
 
 ### Changed
 
+- Aligned `clippy.toml` MSRV to Rust 1.85 (matching `Cargo.toml` and the sibling
+  crates).
+
+### Removed
+
+- The no-op `serde` feature stub: a transient `Cursor` borrow has nothing to
+  serialise.
+
 ### Fixed
 
-### Security
+- `Cargo.toml` `keywords` and `categories` were unquoted bare words — invalid TOML
+  that prevented the crate from building; they are now quoted strings.
 
 ---
 
@@ -34,5 +62,6 @@ Initial scaffold and repository bootstrap. No domain logic yet &mdash; this rele
 - `.github/workflows/ci.yml` CI matrix; `deny.toml`, `clippy.toml`, `rustfmt.toml`.
 - `dev/DIRECTIVES.md` and `dev/ROADMAP.md` (committed engineering standards + plan).
 
-[Unreleased]: https://github.com/jamesgober/lexer-lang/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/jamesgober/lexer-lang/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/jamesgober/lexer-lang/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/jamesgober/lexer-lang/releases/tag/v0.1.0
