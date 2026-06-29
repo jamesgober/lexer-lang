@@ -26,7 +26,7 @@
         <strong>MSRV is 1.85+</strong> (Rust 2024 edition).
     </p>
     <blockquote>
-        <strong>Status: pre-1.0, in active development.</strong> The public API is being designed across the 0.x series and frozen at <code>1.0.0</code>. See <a href="./CHANGELOG.md"><code>CHANGELOG.md</code></a>.
+        <strong>Status: stable (1.0).</strong> The public API is frozen under Semantic Versioning — no breaking changes before <code>2.0</code>. See <a href="./CHANGELOG.md"><code>CHANGELOG.md</code></a> and <a href="./docs/API.md"><code>docs/API.md</code></a>.
     </blockquote>
 </div>
 
@@ -37,14 +37,62 @@
 
 ```toml
 [dependencies]
-lexer-lang = "0.1"
+lexer-lang = "1"
 ```
+
+<br>
+
+## Usage
+
+A lexer is a loop over a `Cursor`: peek at the next character, consume its run, and
+emit a `Token<K>` of the language's own kind.
+
+```rust
+use intern_lang::Interner;
+use token_lang::{Symbol, TokenKind};
+use lexer_lang::Cursor;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Kind {
+    Ident(Symbol),
+    Number,
+    Whitespace,
+    Eof,
+}
+impl TokenKind for Kind {
+    fn is_trivia(&self) -> bool { matches!(self, Kind::Whitespace) }
+    fn is_eof(&self) -> bool { matches!(self, Kind::Eof) }
+    fn symbol(&self) -> Option<Symbol> {
+        match self { Kind::Ident(s) => Some(*s), _ => None }
+    }
+}
+
+let mut interner = Interner::new();
+let mut cursor = Cursor::new("x42 7");
+while let Some(c) = cursor.first() {
+    let kind = if c.is_whitespace() {
+        cursor.eat_while(char::is_whitespace);
+        Kind::Whitespace
+    } else if c.is_ascii_digit() {
+        cursor.eat_while(|c| c.is_ascii_digit());
+        Kind::Number
+    } else {
+        cursor.eat_while(|c| c.is_ascii_alphanumeric());
+        Kind::Ident(cursor.intern_lexeme(&mut interner))
+    };
+    let _token = cursor.emit(kind);
+}
+```
+
+See <a href="./docs/API.md"><code>docs/API.md</code></a> for the full surface.
 
 <br>
 
 ## Status
 
-This is the <code>v0.1.0</code> scaffold: structure, tooling, and quality gates are in place; the implementation lands across the 0.x series per the <a href="./dev/ROADMAP.md"><code>ROADMAP</code></a> and <a href="./docs/API.md"><code>docs/API.md</code></a>.
+<strong>Status: stable (1.0).</strong> <code>v1.0.0</code> freezes the `Cursor`
+scanner under Semantic Versioning: no breaking changes before <code>2.0</code>. See
+the <a href="./dev/ROADMAP.md"><code>ROADMAP</code></a> and <a href="./docs/API.md"><code>docs/API.md</code></a>.
 
 <hr>
 <br>
