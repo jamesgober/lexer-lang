@@ -25,7 +25,12 @@ decision and the deferred token-stream iterator. Property tests cover every
 section-4 invariant over arbitrary UTF-8; `dev/DIRECTIVES.md` and `docs/API.md`
 authored.
 
-## v1.0.0 - API freeze
+## v1.0.0 - API freeze (DONE)
 Public surface stable and frozen until 2.0.
-- [ ] docs/API.md marked stable; SemVer promise recorded.
-- [ ] Full test + benchmark suite green on all three platforms.
+- [x] docs/API.md marked stable; SemVer promise recorded.
+- [x] Full test + benchmark suite green on all three platforms.
+
+Polished before the freeze: added `Cursor::reset_token` (discard-style trivia), made
+position arithmetic saturating, and bumped the `token-lang` dep to its 1.0. The
+diagnostic-free design is now part of the frozen contract (the cursor reports spans;
+the lexer author builds diagnostics — `diag-lang` stays a dev-dependency only).

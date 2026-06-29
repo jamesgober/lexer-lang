@@ -3,7 +3,7 @@
 # =============================================================================
 [package]
 name    = "lexer-lang"
-version = "0.2.0"
+version = "1.0.0"
 
 # Minimum Supported Rust Version (MSRV)
 rust-version = "1.85"
@@ -55,7 +55,7 @@ std = ["span-lang/std", "token-lang/std", "intern-lang/std", "source-lang/std"]
 # Byte positions and spans the cursor reports as it scans.
 span-lang = { version = "0.4", default-features = false }
 # The token type the cursor emits.
-token-lang = { version = "0.2", default-features = false }
+token-lang = { version = "1", default-features = false }
 # Interning identifiers and keywords scanned from source.
 intern-lang = { version = "1", default-features = false }
 # Source files the cursor scans, for global-position spans.

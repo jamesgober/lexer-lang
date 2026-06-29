@@ -1,9 +1,25 @@
 # lexer-lang &mdash; API Reference
 
 > Complete reference for every public item in `lexer-lang`, with examples.
-> **Status: pre-1.0.** The surface below is the v0.2.0 surface and is being
-> finalized across the 0.x series; it is frozen at `1.0`. See
-> [`dev/ROADMAP.md`](../dev/ROADMAP.md).
+> **Status: stable (1.0).** The surface below is the `1.0` contract; it follows
+> [Semantic Versioning](#semver-promise) and will not change in a breaking way before
+> `2.0`. See [`dev/ROADMAP.md`](../dev/ROADMAP.md).
+
+## SemVer promise
+
+As of `1.0.0` the public API documented here is **stable**. The crate follows
+[Semantic Versioning](https://semver.org):
+
+- No item in this reference will be **removed or changed in a breaking way** within
+  the `1.x` series. Breaking changes wait for `2.0`.
+- New functionality arrives in **minor** releases (`1.1`, `1.2`, …) and is additive —
+  a new cursor primitive, a new constructor, a new convenience.
+- Bug fixes, documentation, and internal changes are **patch** releases.
+- The **MSRV** is Rust `1.85`. Raising it is a minor change, called out in the
+  changelog; it is never a patch.
+
+Anything not in this reference — the private fields, exact `Debug` output — is not
+part of the contract and may change at any time.
 
 ## Table of Contents
 
@@ -16,7 +32,7 @@
   - [Looking ahead: `first` / `second` / `is_eof` / `remaining` / `pos`](#looking-ahead)
   - [Consuming: `bump` / `bump_if` / `eat_while`](#consuming)
   - [Reading the run: `lexeme` / `token_span` / `intern_lexeme`](#reading-the-run)
-  - [Finishing a token: `emit`](#finishing-a-token)
+  - [Finishing a token: `emit` / `reset_token`](#finishing-a-token)
 - [Re-exported types](#re-exported-types)
 - [Diagnostics](#diagnostics)
 - [Feature flags](#feature-flags)
@@ -44,7 +60,7 @@ stops handling raw bytes and starts handling tokens.
 
 ```toml
 [dependencies]
-lexer-lang = "0.2"
+lexer-lang = "1"
 ```
 
 Or from the terminal:
@@ -244,14 +260,21 @@ assert_eq!(interner.resolve(sym), Some("total"));
 
 ```rust
 pub fn emit<K>(&mut self, kind: K) -> Token<K>
+pub fn reset_token(&mut self)
 ```
 
-Ends the in-progress token, returning a [`Token<K>`](#re-exported-types) of `kind`
-spanning the consumed run, and starts the next token at the current position. The
-`kind` is the language's own — `emit` is generic over it, so the cursor never needs
-to know a language's token set. Emitting without having consumed anything (at end of
-input, say) yields a token with an empty span, the natural shape for an end-of-input
-marker.
+- **`emit`** — ends the in-progress token, returning a
+  [`Token<K>`](#re-exported-types) of `kind` spanning the consumed run, and starts
+  the next token at the current position. The `kind` is the language's own — `emit`
+  is generic over it, so the cursor never needs to know a language's token set.
+  Emitting without having consumed anything (at end of input, say) yields a token
+  with an empty span, the natural shape for an end-of-input marker.
+- **`reset_token`** — discards the in-progress run *without* producing a token, and
+  starts the next token at the current position. This is the counterpart to `emit`
+  for trivia a lexer drops rather than keeps: consume the whitespace or comment, then
+  `reset_token` so it is not folded into the following token's span. (A lexer that
+  *emits* trivia — for a formatter or a lossless tree — uses `emit` with a trivia
+  kind and never needs this.)
 
 ```rust
 use lexer_lang::{Cursor, Span, Token};
@@ -262,6 +285,18 @@ assert_eq!(cursor.emit("a"), Token::new("a", Span::new(0, 1)));
 // The next token starts where the last one ended.
 cursor.bump();
 assert_eq!(cursor.emit("b"), Token::new("b", Span::new(1, 2)));
+```
+
+Dropping leading whitespace instead of emitting it:
+
+```rust
+use lexer_lang::{Cursor, Span};
+
+let mut cursor = Cursor::new("  x");
+cursor.eat_while(char::is_whitespace);
+cursor.reset_token(); // the spaces are not part of any token
+cursor.eat_while(|c| c.is_ascii_alphabetic());
+assert_eq!(cursor.token_span(), Span::new(2, 3)); // just `x`
 ```
 
 ---
@@ -330,7 +365,7 @@ Disabling `std` keeps the crate `no_std` (it needs no `alloc` either):
 
 ```toml
 [dependencies]
-lexer-lang = { version = "0.2", default-features = false }
+lexer-lang = { version = "1", default-features = false }
 ```
 
 ---

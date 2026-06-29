@@ -117,6 +117,10 @@ impl<'a> Cursor<'a> {
     /// source's coordinate space. [`for_source`](Cursor::for_source) is the usual
     /// way to get the base right for a `source-lang` file.
     ///
+    /// `base + text.len()` is expected to fit in `u32` — the addressable envelope the
+    /// `span-lang` / `source-lang` layers cap at. Position arithmetic saturates rather
+    /// than wrapping if it does not, so a span is never off by `2^32`.
+    ///
     /// # Examples
     ///
     /// ```
@@ -205,6 +209,10 @@ impl<'a> Cursor<'a> {
 
     /// The current position, in the global space set by the base.
     ///
+    /// The base plus the source length must fit in `u32` (the addressable envelope
+    /// the source layers cap at); the addition saturates rather than wrapping if it
+    /// somehow does not, so a position is never silently wrong by `2^32`.
+    ///
     /// # Examples
     ///
     /// ```
@@ -218,7 +226,7 @@ impl<'a> Cursor<'a> {
     #[inline]
     #[must_use]
     pub fn pos(&self) -> BytePos {
-        BytePos::new(self.base + self.offset())
+        BytePos::new(self.base.saturating_add(self.offset()))
     }
 
     /// Peeks the next character without consuming it, or `None` at end of input.
@@ -360,7 +368,10 @@ impl<'a> Cursor<'a> {
     #[inline]
     #[must_use]
     pub fn token_span(&self) -> Span {
-        Span::new(self.base + self.token_start, self.base + self.offset())
+        Span::new(
+            self.base.saturating_add(self.token_start),
+            self.base.saturating_add(self.offset()),
+        )
     }
 
     /// Interns the current [`lexeme`](Cursor::lexeme) into `interner`, returning its
@@ -412,6 +423,34 @@ impl<'a> Cursor<'a> {
         let token = Token::new(kind, self.token_span());
         self.token_start = self.offset();
         token
+    }
+
+    /// Discards the in-progress run without producing a token, starting the next
+    /// token at the current position.
+    ///
+    /// This is the counterpart to [`emit`](Cursor::emit) for trivia a lexer drops
+    /// rather than keeps: consume the whitespace or comment, then `reset_token` so it
+    /// is not folded into the span of the token that follows. (A lexer that instead
+    /// *emits* trivia — for a formatter or a lossless tree — uses `emit` with a
+    /// trivia kind and never needs this.)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use lexer_lang::{Cursor, Span};
+    ///
+    /// let mut cursor = Cursor::new("  x");
+    /// cursor.eat_while(char::is_whitespace);
+    /// cursor.reset_token(); // drop the leading spaces
+    ///
+    /// cursor.eat_while(|c| c.is_ascii_alphabetic());
+    /// // The identifier's span covers only `x`, not the spaces before it.
+    /// assert_eq!(cursor.token_span(), Span::new(2, 3));
+    /// assert_eq!(cursor.lexeme(), "x");
+    /// ```
+    #[inline]
+    pub fn reset_token(&mut self) {
+        self.token_start = self.offset();
     }
 }
 
@@ -499,6 +538,40 @@ mod tests {
         let eof = cursor.emit("eof");
         assert_eq!(eof, Token::new("eof", Span::new(1, 1)));
         assert!(eof.span().is_empty());
+    }
+
+    #[test]
+    fn test_reset_token_drops_the_run_without_emitting() {
+        let mut cursor = Cursor::new("  x");
+        cursor.eat_while(char::is_whitespace);
+        cursor.reset_token();
+        cursor.eat_while(|c| c.is_ascii_alphabetic());
+        // The whitespace is not folded into the identifier's span.
+        assert_eq!(cursor.lexeme(), "x");
+        assert_eq!(cursor.token_span(), Span::new(2, 3));
+    }
+
+    #[test]
+    fn test_reset_token_then_emit_spans_only_the_kept_run() {
+        let mut cursor = Cursor::new("// c\nv");
+        cursor.eat_while(|c| c != '\n'); // a comment to drop
+        cursor.reset_token();
+        cursor.bump(); // the '\n'
+        cursor.reset_token();
+        cursor.bump(); // 'v'
+        assert_eq!(cursor.emit("ident"), Token::new("ident", Span::new(5, 6)));
+    }
+
+    #[test]
+    fn test_positions_saturate_instead_of_wrapping() {
+        // A base one byte below the ceiling: advancing past it saturates at u32::MAX
+        // rather than wrapping around to a tiny offset.
+        let mut cursor = Cursor::with_base("ab", u32::MAX - 1);
+        assert_eq!(cursor.pos(), BytePos::new(u32::MAX - 1));
+        cursor.bump();
+        assert_eq!(cursor.pos(), BytePos::new(u32::MAX));
+        cursor.bump();
+        assert_eq!(cursor.pos(), BytePos::new(u32::MAX)); // saturated, not wrapped
     }
 
     #[test]

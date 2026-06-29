@@ -26,7 +26,8 @@
 //! - read the run — [`lexeme`](Cursor::lexeme), [`token_span`](Cursor::token_span),
 //!   [`intern_lexeme`](Cursor::intern_lexeme);
 //! - finish a token — [`emit`](Cursor::emit), which builds the `Token<K>` and starts
-//!   the next.
+//!   the next, or [`reset_token`](Cursor::reset_token), which drops the run (for
+//!   trivia the lexer discards rather than emits).
 //!
 //! Everything is zero-copy: the cursor borrows the source, reports positions as
 //! [`BytePos`] and [`Span`], and hands lexemes back as borrowed `&str`. Nothing here
@@ -88,6 +89,13 @@
 //! source and needs neither the standard library nor `alloc`. The default `std`
 //! feature only forwards to the standard-library builds of the family crates.
 //! Disable default features to build for a `no_std` target.
+//!
+//! ## Stability
+//!
+//! As of `1.0.0` the public surface is **stable** and follows Semantic Versioning:
+//! no breaking changes before `2.0`, additions arrive in minor releases, and the
+//! MSRV (Rust 1.85) only rises in a minor. The frozen surface is catalogued in
+//! [`docs/API.md`](https://github.com/jamesgober/lexer-lang/blob/main/docs/API.md).
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(docsrs, feature(doc_cfg))]

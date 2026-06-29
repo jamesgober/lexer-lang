@@ -26,7 +26,7 @@
         <strong>MSRV is 1.85+</strong> (Rust 2024 edition).
     </p>
     <blockquote>
-        <strong>Status: pre-1.0, in active development.</strong> The public API is being designed across the 0.x series and frozen at <code>1.0.0</code>. See <a href="./CHANGELOG.md"><code>CHANGELOG.md</code></a>.
+        <strong>Status: stable (1.0).</strong> The public API is frozen under Semantic Versioning — no breaking changes before <code>2.0</code>. See <a href="./CHANGELOG.md"><code>CHANGELOG.md</code></a> and <a href="./docs/API.md"><code>docs/API.md</code></a>.
     </blockquote>
 </div>
 
@@ -37,7 +37,7 @@
 
 ```toml
 [dependencies]
-lexer-lang = "0.2"
+lexer-lang = "1"
 ```
 
 <br>
@@ -90,10 +90,9 @@ See <a href="./docs/API.md"><code>docs/API.md</code></a> for the full surface.
 
 ## Status
 
-<strong>Status: pre-1.0, in active development.</strong> The <code>v0.2.0</code>
-release lands the core — the `Cursor` scanner. The public API is being finalized
-across the 0.x series and frozen at <code>1.0.0</code>; see the
-<a href="./dev/ROADMAP.md"><code>ROADMAP</code></a> and <a href="./docs/API.md"><code>docs/API.md</code></a>.
+<strong>Status: stable (1.0).</strong> <code>v1.0.0</code> freezes the `Cursor`
+scanner under Semantic Versioning: no breaking changes before <code>2.0</code>. See
+the <a href="./dev/ROADMAP.md"><code>ROADMAP</code></a> and <a href="./docs/API.md"><code>docs/API.md</code></a>.
 
 <hr>
 <br>

@@ -11,6 +11,28 @@
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-06-28
+
+API freeze. `1.0.0` declares the `Cursor` surface stable under Semantic Versioning
+until `2.0`: no breaking changes before `2.0`, additions only in minor releases, and
+the MSRV (Rust 1.85) rising only in a minor.
+
+### Added
+
+- `Cursor::reset_token` — discards the in-progress run without emitting a token, so a
+  lexer can drop trivia (whitespace, comments) instead of folding it into the next
+  token's span. Complements `emit` for the discard-style lexers that do not emit
+  trivia as tokens.
+
+### Changed
+
+- Position arithmetic (`pos`, `token_span`) now saturates rather than wrapping if a
+  user-supplied base plus the source length somehow exceeds the `u32` addressing
+  envelope — a span is never silently off by `2^32`.
+- Bumped the `token-lang` dependency to `1` (its frozen 1.0 release).
+- `docs/API.md` and the crate docs document the surface as the stable `1.0` contract,
+  with the SemVer promise recorded.
+
 ## [0.2.0] - 2026-06-28
 
 The core: the scanner that turns source text into a token stream. Wires `span-lang`,
@@ -62,6 +84,7 @@ Initial scaffold and repository bootstrap. No domain logic yet &mdash; this rele
 - `.github/workflows/ci.yml` CI matrix; `deny.toml`, `clippy.toml`, `rustfmt.toml`.
 - `dev/DIRECTIVES.md` and `dev/ROADMAP.md` (committed engineering standards + plan).
 
-[Unreleased]: https://github.com/jamesgober/lexer-lang/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/jamesgober/lexer-lang/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/jamesgober/lexer-lang/compare/v0.2.0...v1.0.0
 [0.2.0]: https://github.com/jamesgober/lexer-lang/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/jamesgober/lexer-lang/releases/tag/v0.1.0
