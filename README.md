@@ -18,7 +18,7 @@
 
 <div align="left">
     <p>
-        lexer-lang is the MAIN-tier crate that follows: The scanner that turns source text into a token stream. First real HQL handoff. Part of the -lang language-construction family; see _strategy/LANG_COLLECTION.md for the master plan.
+        lexer-lang is the MAIN-tier crate that follows: The scanner that turns source text into a token stream. First real HQL handoff. Part of the -lang language-construction family.
     </p>
     <br>
     <hr>
