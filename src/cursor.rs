@@ -86,8 +86,9 @@ pub struct Cursor<'a> {
     text: &'a str,
     /// The unconsumed tail; its length gives the current offset.
     chars: Chars<'a>,
-    /// Local byte offset where the in-progress token started.
-    token_start: u32,
+    /// Local byte offset where the in-progress token started. Kept as `usize` so
+    /// slicing the lexeme back out is exact even for a text over 4 GiB.
+    token_start: usize,
     /// Offset added to every reported position, placing spans in a global space.
     base: u32,
 }
@@ -117,9 +118,11 @@ impl<'a> Cursor<'a> {
     /// source's coordinate space. [`for_source`](Cursor::for_source) is the usual
     /// way to get the base right for a `source-lang` file.
     ///
-    /// `base + text.len()` is expected to fit in `u32` — the addressable envelope the
-    /// `span-lang` / `source-lang` layers cap at. Position arithmetic saturates rather
-    /// than wrapping if it does not, so a span is never off by `2^32`.
+    /// `base + text.len()` is expected to fit in `u32`, the addressable envelope the
+    /// `span-lang` / `source-lang` layers cap at. If it does not (a large `base`, or
+    /// a text over 4 GiB), every reported position past the ceiling is `u32::MAX`:
+    /// positions saturate rather than wrap, so a span is never off by `2^32`, and
+    /// [`lexeme`](Cursor::lexeme) still returns the exact text.
     ///
     /// # Examples
     ///
@@ -200,18 +203,26 @@ impl<'a> Cursor<'a> {
     /// The current local byte offset: how far into `text` the cursor has advanced,
     /// ignoring the base.
     #[inline]
-    fn offset(&self) -> u32 {
+    fn offset(&self) -> usize {
         // `text` is the full source and `chars.as_str()` its unconsumed tail, so the
-        // difference is the consumed prefix length — always within `text.len()`,
-        // which the source layers cap at `u32::MAX`.
-        (self.text.len() - self.chars.as_str().len()) as u32
+        // difference is the consumed prefix length, always within `text.len()`.
+        self.text.len() - self.chars.as_str().len()
+    }
+
+    /// Converts a local byte offset to a global position: `base + local`,
+    /// saturating at `u32::MAX` both when `local` itself does not fit in `u32`
+    /// (a text over 4 GiB) and when the addition overflows.
+    #[inline]
+    fn global(&self, local: usize) -> u32 {
+        let local = u32::try_from(local).unwrap_or(u32::MAX);
+        self.base.saturating_add(local)
     }
 
     /// The current position, in the global space set by the base.
     ///
-    /// The base plus the source length must fit in `u32` (the addressable envelope
-    /// the source layers cap at); the addition saturates rather than wrapping if it
-    /// somehow does not, so a position is never silently wrong by `2^32`.
+    /// The base plus the source length should fit in `u32` (the addressable
+    /// envelope the source layers cap at). If it does not, the position saturates
+    /// at `u32::MAX` rather than wrapping, so it is never silently wrong by `2^32`.
     ///
     /// # Examples
     ///
@@ -226,7 +237,7 @@ impl<'a> Cursor<'a> {
     #[inline]
     #[must_use]
     pub fn pos(&self) -> BytePos {
-        BytePos::new(self.base.saturating_add(self.offset()))
+        BytePos::new(self.global(self.offset()))
     }
 
     /// Peeks the next character without consuming it, or `None` at end of input.
@@ -350,7 +361,7 @@ impl<'a> Cursor<'a> {
     #[inline]
     #[must_use]
     pub fn lexeme(&self) -> &'a str {
-        &self.text[self.token_start as usize..self.offset() as usize]
+        &self.text[self.token_start..self.offset()]
     }
 
     /// The [`Span`] of the in-progress token, in the global space set by the base:
@@ -368,10 +379,7 @@ impl<'a> Cursor<'a> {
     #[inline]
     #[must_use]
     pub fn token_span(&self) -> Span {
-        Span::new(
-            self.base.saturating_add(self.token_start),
-            self.base.saturating_add(self.offset()),
-        )
+        Span::new(self.global(self.token_start), self.global(self.offset()))
     }
 
     /// Interns the current [`lexeme`](Cursor::lexeme) into `interner`, returning its
@@ -572,6 +580,23 @@ mod tests {
         assert_eq!(cursor.pos(), BytePos::new(u32::MAX));
         cursor.bump();
         assert_eq!(cursor.pos(), BytePos::new(u32::MAX)); // saturated, not wrapped
+    }
+
+    #[test]
+    fn test_local_offsets_past_u32_saturate() {
+        // A text over 4 GiB is too big for a unit test, so check the conversion
+        // directly: a local offset that does not fit in u32 pins at u32::MAX
+        // instead of wrapping to a small number.
+        let cursor = Cursor::with_base("", 0);
+        assert_eq!(cursor.global(5), 5);
+        assert_eq!(cursor.global(u32::MAX as usize), u32::MAX);
+        #[cfg(target_pointer_width = "64")]
+        {
+            assert_eq!(cursor.global(u32::MAX as usize + 1), u32::MAX);
+            assert_eq!(cursor.global(u32::MAX as usize + 11), u32::MAX);
+        }
+        let based = Cursor::with_base("", 7);
+        assert_eq!(based.global(u32::MAX as usize - 3), u32::MAX);
     }
 
     #[test]
