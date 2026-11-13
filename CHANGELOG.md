@@ -11,6 +11,19 @@
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-11-12
+
+### Fixed
+
+- Positions past 4 GiB now saturate. The cursor turned its local byte offset
+  into a `u32` with a plain cast, so on a text over 4 GiB the offset wrapped:
+  a token that crossed the 4 GiB mark got a wrong span, and `lexeme` sliced
+  backwards and panicked. Only the `base + offset` addition saturated, though
+  the docs said all position arithmetic did. The cursor now keeps local offsets
+  as `usize`, so `lexeme` is exact at any size, and every reported position
+  past `u32::MAX` is `u32::MAX`. Texts that fit in 4 GiB behave exactly as
+  before.
+
 ## [1.0.0] - 2026-06-28
 
 API freeze. `1.0.0` declares the `Cursor` surface stable under Semantic Versioning
@@ -84,7 +97,8 @@ Initial scaffold and repository bootstrap. No domain logic yet &mdash; this rele
 - `.github/workflows/ci.yml` CI matrix; `deny.toml`, `clippy.toml`, `rustfmt.toml`.
 - `dev/DIRECTIVES.md` and `dev/ROADMAP.md` (committed engineering standards + plan).
 
-[Unreleased]: https://github.com/jamesgober/lexer-lang/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/jamesgober/lexer-lang/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/jamesgober/lexer-lang/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/jamesgober/lexer-lang/compare/v0.2.0...v1.0.0
 [0.2.0]: https://github.com/jamesgober/lexer-lang/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/jamesgober/lexer-lang/releases/tag/v0.1.0
